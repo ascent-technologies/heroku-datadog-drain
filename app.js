@@ -1,10 +1,10 @@
 'use strict';
 
+var bodyParser = require('body-parser')
 let _ = require('lodash');
 let assert = require('assert');
 let logfmt = require('logfmt');
 let express = require('express');
-let through = require('through');
 let urlUtil = require('url');
 let StatsD = require('node-statsd');
 let basicAuth = require('basic-auth');
@@ -17,7 +17,11 @@ if (process.env.DEBUG) {
   statsd.send = wrap(statsd.send.bind(statsd), console.log.bind(null, 'Intercepted: statsd.send(%s):'));
 }
 
-app.use(logfmt.bodyParserStream());
+app.use(bodyParser.text({
+  'type': 'application/logplex-1',
+  'limit': null
+}));
+
 app.use(function authenticate (req, res, next) {
   let auth = basicAuth(req) || {};
   let app = allowedApps[auth.name];
@@ -34,12 +38,17 @@ app.use(function authenticate (req, res, next) {
 });
 
 app.post('/', function (req, res) {
-  if(req.body !== undefined) {
-    // Doing this causes the H18 errors. This is still running when the response is sent below
-    req.body.pipe(through(line => processLine(line, req.prefix, req.defaultTags)));
+  try {
+    if (req.body && 'string' === typeof req.body) {
+      req.body.trim().split('\n').forEach(function (line) {
+        processLine(logfmt.parse(line), req.prefix, req.defaultTags);
+      });
+    }
+    res.status(200).send('OK');
+  } catch(error) {
+    console.log(error)
+    res.status(500);
   }
-  
-  res.send('OK');
 });
 
 let port = process.env.PORT || 3000;
@@ -47,6 +56,11 @@ app.listen(port, function () {
   console.log('Server listening on port ' + port);
 });
 
+function formatPath(url) {
+  const urlNoUuids = url.replace(/\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})+/gi, '/:uuid')
+  const urlNoUrlParams = urlNoUuids.replace(/(\?.*)/, '')
+  return urlNoUrlParams.replace(/\/(\d+)+?/g, '/:id') // replace ids
+}
 
 /**
  * Matches a line against a rule and processes it
@@ -73,8 +87,14 @@ function processLine (line, prefix, defaultTags) {
     if (process.env.DEBUG) {
       console.log('Processing router metrics');
     }
-    let tags = tagsToArr(_.pick(line, ['dyno', 'method', 'status', 'path', 'host', 'code', 'desc', 'at']));
-    tags = _.union(tags, defaultTags);
+    let tags = tagsToArr(_.pick(line, ['dyno', 'method', 'status', 'host', 'code', 'desc']));
+
+    // Remove the ids from the path
+    let pathObject = _.pick(line, ['path'])
+    pathObject['path'] = formatPath(pathObject['path'])
+    let pathTag = tagsToArr(pathObject)
+
+    tags = _.union(tags, defaultTags, pathTag);
     statsd.histogram(prefix + 'heroku.router.request.connect', extractNumber(line.connect), tags);
     statsd.histogram(prefix + 'heroku.router.request.service', extractNumber(line.service), tags);
     if (line.at === 'error') {
@@ -163,18 +183,19 @@ function loadAllowedAppsFromEnv () {
   let apps = {};
 
   appNames.map(function (name) {
+    const upperUnderscoreName = name.replace(/-/g, '_').toUpperCase()
+
     // Password
-    var passwordEnvName = name.toUpperCase() + '_PASSWORD';
+    const passwordEnvName = `${upperUnderscoreName}_PASSWORD`;
     var password = process.env[passwordEnvName];
-    assert(password, 'Environment variable ' + passwordEnvName + ' required');
+    assert(password, `Environment variable ${passwordEnvName} required`);
 
     // Tags
-    var tags = process.env[name.toUpperCase() + '_TAGS'];
+    var tags = process.env[`${upperUnderscoreName}_TAGS`];
     tags = tags === undefined ? [] : tags.split(',');
-    tags.push('app:' + name);
 
     // Prefix
-    var prefix = process.env[name.toUpperCase() + '_PREFIX'] || '';
+    var prefix = process.env[`${upperUnderscoreName}_PREFIX`] || '';
     if (prefix && prefix.slice(-1) !== '.') {
       prefix += '.';
     }
@@ -190,7 +211,7 @@ function loadAllowedAppsFromEnv () {
 }
 
 /**
- * 
+ *
  */
 function extractNumber (string) {
   if (typeof string === 'string') {
