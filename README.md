@@ -11,7 +11,7 @@ Supported Heroku metrics:
 
 ## Get Started
 ```bash
-git clone git@github.com:ozinc/heroku-datadog-drain.git
+git clone git@github.com:ascent-technologies/heroku-datadog-drain.git
 cd heroku-datadog-drain
 
 # Create the Heroku instance
@@ -67,4 +67,14 @@ ALLOWED_APPS=my-app,..    # Required. Comma seperated list of app names
 <APP_NAME>_PREFIX=yee     # Optional. String to be prepended to all metrics from a given app
 STATSD_URL=..             # Optional. Default: statsd://localhost:8125
 DEBUG=                    # Optional. If DEBUG is set, a lot of stuff will be logged :)
+```
+
+# Development
+
+## Running tests
+
+```sh
+npm install
+
+npm test
 ```

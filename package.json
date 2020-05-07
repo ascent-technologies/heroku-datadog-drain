@@ -5,30 +5,31 @@
   "engines": {
     "node": "10.9"
   },
-  "homepage": "https://github.com/ozinc/heroku-datadog-drain",
+  "homepage": "https://github.com/ascent-technologies/heroku-datadog-drain",
   "repository": {
     "type": "git",
-    "url": "git://github.com/ozinc/heroku-datadog-drain.git"
+    "url": "git://github.com/ascent-technologies/heroku-datadog-drain.git"
   },
   "scripts": {
     "start": "./node_modules/.bin/babel-node app.js",
-    "test": "mocha --compilers js:babel/register app.test.js"
+    "test": "mocha --require babel-core/register app.test.js"
   },
   "author": "Hrafn Eiriksson <hrafn@oz.com>, Sveinn Fannar Kristjansson <sveinn@oz.com>",
   "license": "ISC",
   "dependencies": {
     "babel-cli": "^6.26.0",
-    "basic-auth": "2.0.0",
-    "express": "4.16.3",
-    "lodash": "4.17.10",
-    "logfmt": "^1.2.0",
-    "node-statsd": "^0.1.1",
+    "basic-auth": "2.0.1",
+    "express": "4.17.1",
+    "lodash": "4.17.15",
+    "logfmt": "^1.3.2",
+    "hot-shots": "^7.4.2",
     "through": "^2.3.8"
   },
   "devDependencies": {
-    "chai": "4.1.2",
-    "mocha": "5.2.0",
-    "sinon": "6.1.5",
+    "chai": "4.2.0",
+    "mocha": "7.1.2",
+    "sinon": "9.0.2",
+    "supertest": "^4.0.2",
     "supertest-as-promised": "4.0.2"
   }
 }
